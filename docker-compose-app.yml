@@ -1,19 +1,5 @@
 services:
-  traefik:
-    image: traefik:v3.6
-    container_name: traefik
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - avr
-
+  # El servicio Traefik se ha eliminado porque Dokploy ya lo gestiona.
   avr-app-backend:
     image: agentvoiceresponse/avr-app-backend
     platform: linux/x86_64
@@ -21,13 +7,17 @@ services:
     restart: always
     environment:
       - PORT=3001
-      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-here}
-      - FRONTEND_URL=${FRONTEND_URL:-http://avr.localhost}
+      # --- VARIABLES IMPORTANTES A CAMBIAR SI QUIERES SEGURIDAD ---
+      - JWT_SECRET=${JWT_SECRET:-cambia-esto-por-una-clave-secreta-larga}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
-      - WEBHOOK_URL=${WEBHOOK_URL:-http://avr-app-backend:3001/webhooks}
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-your-webhook-secret-here}
-      - ARI_URL=${ARI_URL:-http://avr-asterisk:8088/ari}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-cambia-esto-por-otro-secreto}
+      # -----------------------------------------------------------
+      # Aquí definimos la URL donde estará tu Frontend (Panel)
+      - FRONTEND_URL=http://avr.31.97.118.226.traefik.me
+      
+      - WEBHOOK_URL=http://avr-app-backend:3001/webhooks
+      - ARI_URL=http://avr-asterisk:8088/ari
       - ARI_USERNAME=${ARI_USERNAME:-avr}
       - ARI_PASSWORD=${ARI_PASSWORD:-avr}
       - TENANT=${TENANT:-demo}
@@ -38,9 +28,12 @@ services:
       - ASTERISK_RECORDINGS_PATH=/app/recordings
     labels:
       - traefik.enable=true
+      # Definimos el dominio de la API
+      - traefik.http.routers.avr-app-backend.rule=Host(`avr-api.31.97.118.226.traefik.me`)
       - traefik.http.routers.avr-app-backend.entrypoints=web
-      - traefik.http.routers.avr-app-backend.rule=Host(`api.localhost`)
       - traefik.http.services.avr-app-backend.loadbalancer.server.port=3001
+      # Conectamos con el Traefik de Dokploy
+      - traefik.docker.network=dokploy-network
     volumes:
       - ./asterisk/conf:/app/asterisk
       - ./data:/app/data
@@ -48,29 +41,35 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - avr
-
+      - dokploy-network
   avr-app-frontend:
     image: agentvoiceresponse/avr-app-frontend
     platform: linux/x86_64
     container_name: avr-app-frontend
     restart: always
     environment:
-      - NEXT_PUBLIC_API_URL=http://api.localhost
+      # Le decimos al frontend dónde está el backend
+      - NEXT_PUBLIC_API_URL=http://avr-api.31.97.118.226.traefik.me
+      # Esta URL se usa para el teléfono web, por ahora la dejamos con el servidor oficial de demo
+      # si falla, avísame, pero suele ser un componente estático externo.
       - NEXT_PUBLIC_WEBRTC_CLIENT_URL=https://phone.agentvoiceresponse.com/index.html
     labels:
       - traefik.enable=true
+      # Definimos el dominio del Panel (Frontend)
+      - traefik.http.routers.avr-app-frontend.rule=Host(`avr.31.97.118.226.traefik.me`)
       - traefik.http.routers.avr-app-frontend.entrypoints=web
-      - traefik.http.routers.avr-app-frontend.rule=Host(`avr.localhost`)
       - traefik.http.services.avr-app-frontend.loadbalancer.server.port=3000
+      - traefik.docker.network=dokploy-network
     networks:
       - avr
-
+      - dokploy-network
   avr-asterisk:
     image: agentvoiceresponse/avr-asterisk
     platform: linux/x86_64
     container_name: avr-asterisk
     restart: always
     ports:
+      # Estos puertos se abren directamente en el servidor
       - 8089:8089
       - 10000-10050:10000-10050/udp
     volumes:
@@ -82,7 +81,7 @@ services:
       - ./asterisk/recordings:/var/spool/asterisk/monitor
     networks:
       - avr
-      
+      - dokploy-network
 networks:
   avr:
     name: avr
@@ -90,3 +89,5 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/24
+  dokploy-network:
+    external: true
