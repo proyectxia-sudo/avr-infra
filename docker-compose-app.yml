@@ -8,7 +8,7 @@ services:
       - PORT=3001
       - JWT_SECRET=${JWT_SECRET:-cambia-esto-por-secreto}
       # AHORA USAMOS HTTPS (IMPORTANTE)
-      - FRONTEND_URL=https://avr.31.97.118.226.traefik.me
+      - FRONTEND_URL=https://avr.aicodex.cloud
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
       - WEBHOOK_URL=http://avr-app-backend:3001/webhooks
@@ -38,7 +38,7 @@ services:
     restart: always
     environment:
       # AHORA USAMOS HTTPS (IMPORTANTE PARA EVITAR ERROR DE MIXED CONTENT)
-      - NEXT_PUBLIC_API_URL=https://avr-api.31.97.118.226.traefik.me
+      - NEXT_PUBLIC_API_URL=https://avr-api.aicodex.cloud
       - NEXT_PUBLIC_WEBRTC_CLIENT_URL=https://phone.agentvoiceresponse.com/index.html
     # ELIMINADA LA SECCIÓN LABELS
     networks:
